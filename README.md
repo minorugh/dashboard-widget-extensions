@@ -29,14 +29,14 @@ Agenda for the coming 30 days:
 
 ## Widgets
 
-- [gcal-dashboard-widget](#gcal-dashboard-widget) — Google CalendarをorgファイルへSyncし、dashboardのAgendaに表示
-- [haiku-dashboard-widget](#haiku-dashboard-widget) — 青畝俳句366日分を日替わりでdashboardに表示
+- [gcal-widget](#gcal-widget) — Google CalendarをorgファイルへSyncし、dashboardのAgendaに表示
+- [haiku-widget](#haiku-widget) — 青畝俳句366日分を日替わりでdashboardに表示、他の日替わりコンテンツにも応用可
 
 ---
 
-## gcal-dashboard-widget
+## gcal-widget
 
-Google Calendarの予定を、dashboardのAgendaとして表示する単一ファイルのウィジェットです。
+Google Calendarの予定を、dashboardのAgendaとして表示する単一ファイルのウィジェットです。ファイル名は`dashboard-gcal-widget.el`(`ls`したときに`dashboard-*`で並ぶように命名)、Lisp内の関数・変数プレフィックスは`gcal-widget-*`です。
 
 ### コンセプト
 
@@ -64,9 +64,9 @@ Google Calendar (複数可)
   dashboardのAgendaウィジェット
 ```
 
-同期は`kill-emacs-hook`(Emacs終了時)、または`M-x gcal-dashboard-sync`で手動実行できます。途中でネットワークエラーやタイムアウトが起きても本番ファイル(`gcal.org`)には一切手を付けないまま終わるので、常に「直前の完全な状態」が保たれます。
+同期は`kill-emacs-hook`(Emacs終了時)、または`M-x gcal-widget-sync`で手動実行できます。途中でネットワークエラーやタイムアウトが起きても本番ファイル(`gcal.org`)には一切手を付けないまま終わるので、常に「直前の完全な状態」が保たれます。
 
-表示側はdashboard.el標準の`agenda`ウィジェットをそのまま使います。独自のitem-generatorを新設しない理由は、dashboard.elが見出しアイコン(`dashboard-heading-icons`)やショートカットキー(`dashboard-item-shortcuts`)を`recents`/`bookmarks`/`projects`/`agenda`/`registers`の5種類にしか対応付けておらず、別シンボルを作ると標準ウィジェットの恩恵(アイコン表示など)を失うだけだからです。表示日数の拡張(`dashboard-due-date-for-agenda`)や曜日表示(`dashboard-agenda--formatted-time`)、見出し文言(`dashboard-item-names`)など、dashboard.el内部の関数振る舞いを変える必要がある箇所だけ`advice-add`/公式のカスタマイズ変数で差し替えており、`(advice-remove 'dashboard-due-date-for-agenda #'gcal-dashboard--due-date-for-agenda)`のように元の挙動へ戻すこともできます。
+表示側はdashboard.el標準の`agenda`ウィジェットをそのまま使います。独自のitem-generatorを新設しない理由は、dashboard.elが見出しアイコン(`dashboard-heading-icons`)やショートカットキー(`dashboard-item-shortcuts`)を`recents`/`bookmarks`/`projects`/`agenda`/`registers`の5種類にしか対応付けておらず、別シンボルを作ると標準ウィジェットの恩恵(アイコン表示など)を失うだけだからです。表示日数の拡張(`dashboard-due-date-for-agenda`)や曜日表示(`dashboard-agenda--formatted-time`)、見出し文言(`dashboard-item-names`)など、dashboard.el内部の関数振る舞いを変える必要がある箇所だけ`advice-add`/公式のカスタマイズ変数で差し替えており、`(advice-remove 'dashboard-due-date-for-agenda #'gcal-widget--due-date-for-agenda)`のように元の挙動へ戻すこともできます。
 
 ### Setup
 
@@ -76,45 +76,45 @@ Google Calendar (複数可)
 (use-package dashboard
   :ensure t
   :config
-  (require 'gcal-dashboard-widget)
+  (require 'dashboard-gcal-widget)
   (setq dashboard-items '((agenda . 10))))
 ```
 
 1. Google Calendarの「設定」→ 対象カレンダーの「カレンダーの統合」→「非公開URL(iCal形式)」をコピーする
 2. コピーしたURLを、1行だけのテキストファイルとして保存する。**このファイルは絶対に公開リポジトリにコミットしないでください。**
    ```
-   ~/.config/gcal-dashboard/private-url
+   ~/.config/gcal-widget/private-url
    ```
    ```
    https://calendar.google.com/calendar/ical/xxxxx%40gmail.com/private-yyyyy/basic.ics
    ```
-3. `gcal-dashboard-calendars`に登録する
+3. `gcal-widget-calendars`に登録する
    ```elisp
-   (setq gcal-dashboard-calendars
-         '(("private" . "~/.config/gcal-dashboard/private-url")
-           ("work"    . "~/.config/gcal-dashboard/work-url")))
+   (setq gcal-widget-calendars
+         '(("private" . "~/.config/gcal-widget/private-url")
+           ("work"    . "~/.config/gcal-widget/work-url")))
    ```
    複数のカレンダーを登録すると、まとめて1つのAgendaに時刻順でマージされます。
 4. 初回同期
    ```
-   M-x gcal-dashboard-sync
+   M-x gcal-widget-sync
    ```
    以降は`kill-emacs-hook`で自動的に同期されます。
 
 ### Customization
 
-`M-x customize-group RET gcal-dashboard`でもまとめて確認・変更できます。
+`M-x customize-group RET gcal-widget`でもまとめて確認・変更できます。
 
 | 変数 | デフォルト | 説明 |
 |---|---|---|
-| `gcal-dashboard-calendars` | (なし、要設定) | 同期対象カレンダーの一覧。`(名前 . URLファイルパス)`のalist |
-| `gcal-dashboard-org-file` | `~/.emacs.d/tmp/gcal.org` | 同期結果の出力先(自動生成、手編集不可) |
-| `gcal-dashboard-months-back` | `12` | 何ヶ月前より新しい予定を残すか |
-| `gcal-dashboard-block-end-date-correction` | `1` | 複数日イベントの終了日補正(日数) |
-| `gcal-dashboard-agenda-days` | `30` | Agendaに何日先までの予定を表示するか |
-| `gcal-dashboard-weekday-kanji` | `["日" "月" ... "土"]` | 曜日表示に使う漢字(ロケール非依存) |
+| `gcal-widget-calendars` | (なし、要設定) | 同期対象カレンダーの一覧。`(名前 . URLファイルパス)`のalist |
+| `gcal-widget-org-file` | `~/.emacs.d/tmp/gcal.org` | 同期結果の出力先(自動生成、手編集不可) |
+| `gcal-widget-months-back` | `12` | 何ヶ月前より新しい予定を残すか |
+| `gcal-widget-block-end-date-correction` | `1` | 複数日イベントの終了日補正(日数) |
+| `gcal-widget-agenda-days` | `30` | Agendaに何日先までの予定を表示するか |
+| `gcal-widget-weekday-kanji` | `["日" "月" ... "土"]` | 曜日表示に使う漢字(ロケール非依存) |
 
-`dashboard-agenda-sort-strategy`や`dashboard-agenda-prefix-format`など、dashboard標準の変数もこのパッケージ側で上書き設定しているので、変更したい場合は`(require 'gcal-dashboard-widget)`の**後**に`setq`してください。ただし`gcal-dashboard-agenda-days`だけは例外で、dashboardバッファを更新するたびに値を読み直す作りにしているため、`require`の前後を気にせず単純な`setq`で変更できます。
+`dashboard-agenda-sort-strategy`や`dashboard-agenda-prefix-format`など、dashboard標準の変数もこのパッケージ側で上書き設定しているので、変更したい場合は`(require 'dashboard-gcal-widget)`の**後**に`setq`してください。ただし`gcal-widget-agenda-days`だけは例外で、dashboardバッファを更新するたびに値を読み直す作りにしているため、`require`の前後を気にせず単純な`setq`で変更できます。
 
 ### 制約・既知の癖
 
@@ -124,22 +124,23 @@ Google Calendar (複数可)
 
 ---
 
-## haiku-dashboard-widget
+## haiku-widget
 
-青畝の俳句366日分データを、dashboard起動時に日替わりで1句表示するウィジェットです。
+青畝の俳句366日分データを、dashboard起動時に日替わりで1句表示するウィジェットです。ファイル名は`dashboard-haiku-widget.el`、Lisp内のプレフィックスは`seiho-haiku-*`(俳句データの出典・青畝に由来)です。
 
 ### コンセプト
 
 - **完全にオフライン・静的データ**です。ネットワークアクセスも外部依存もなく、`seiho-haiku-data`という366日分(月×日)の俳句リストをファイル内に丸ごと持っています。
 - **その日の日付に対応する句を1件だけ表示**します。閏年や月末日数のズレは考慮せず、単純に「今日の月・日」をインデックスとして引くだけの割り切った設計です。
-- **表示はdashboardのitem-generatorとして提供**しますが、gcal-dashboard-widgetと違いdashboard標準アイテムに相乗りできないため、利用側で`dashboard-item-generators`への登録が必要です(下記Setup参照)。
+- **表示はdashboardのitem-generatorとして提供**しますが、gcal-widgetと違いdashboard標準アイテムに相乗りできないため、利用側で`dashboard-item-generators`への登録が必要です(下記Setup参照)。
+- **「今日の一句」という枠組み自体が汎用的**です。データを`seiho-haiku-data`と同じ`(俳句 . 作者)`ペアの366要素alistに差し替えるだけで、「今日の聖書の言葉」「今日の格言」「今日の名言」など、日替わりで何か1件を表示する別ウィジェットに転用できます。中身(データ)と表示ロジック(`seiho-haiku-today`/`seiho-haiku-insert-today`)が分離されているので、複製してデータとプレフィックスを差し替えるのが一番手軽な拡張方法です。
 
 ### Setup
 
 自前のitem-generatorを定義してdashboardに登録する必要があります。
 
 ```elisp
-(require 'haiku-dashboard-widget)
+(require 'dashboard-haiku-widget)
 
 (defun dashboard-insert-haiku (_list-size)
   "今日の一句をdashboardに挿入する。"
