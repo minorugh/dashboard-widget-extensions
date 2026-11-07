@@ -1,4 +1,4 @@
-a.out:git
+all: git
 
 
 HOSTNAME := $(shell hostname)
